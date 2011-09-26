@@ -20,7 +20,7 @@ License:        BSD
 URL:            http://nginx.net/
 BuildRoot:      %{_tmppath}/%{real_name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl-devel,perl(ExtUtils::Embed)
+BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed)
 BuildRequires:      libxslt-devel,gd-devel
 Requires:           pcre,openssl,gd
 Requires:           perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
