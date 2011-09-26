@@ -11,7 +11,7 @@
 Name:           nginx-stable
 Version:        1.0.6
 Release:        1%{?dist}
-Summary:        Robust, small and high performance http and reverse proxy server
+Summary:        Robust, small and high performance HTTP and reverse proxy server
 Group:          System Environment/Daemons   
 
 # BSD License (two clause)
@@ -20,8 +20,9 @@ License:        BSD
 URL:            http://nginx.net/
 BuildRoot:      %{_tmppath}/%{real_name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed)
-Requires:           pcre,zlib,openssl
+BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl-devel,perl(ExtUtils::Embed)
+BuildRequires:      libxslt-devel,gd-devel
+Requires:           pcre,openssl,gd
 Requires:           perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
 # for /usr/sbin/useradd
 Requires(pre):      shadow-utils
@@ -29,8 +30,9 @@ Requires(post):     chkconfig
 # for /sbin/service
 Requires(preun):    chkconfig, initscripts
 Requires(postun):   initscripts
+Provides:           webserver
 
-Source0:    http://sysoev.ru/nginx/nginx-%{version}.tar.gz
+Source0:    http://nginx.org/download/nginx-%{version}.tar.gz
 Source1:    %{real_name}.init
 Source2:    %{real_name}.logrotate
 Source3:    virtual.conf
@@ -83,21 +85,31 @@ export DESTDIR=%{buildroot}
     --http-client-body-temp-path=%{nginx_home_tmp}/client_body \
     --http-proxy-temp-path=%{nginx_home_tmp}/proxy \
     --http-fastcgi-temp-path=%{nginx_home_tmp}/fastcgi \
+    --http-uwsgi-temp-path=%{nginx_home_tmp}/uwsgi \
+    --http-scgi-temp-path=%{nginx_home_tmp}/scgi \
     --pid-path=%{_localstatedir}/run/%{real_name}.pid \
     --lock-path=%{_localstatedir}/lock/subsys/%{real_name} \
     --with-http_ssl_module \
     --with-http_realip_module \
     --with-http_addition_module \
+    --with-http_xslt_module \
+    --with-http_image_filter_module \
     --with-http_sub_module \
     --with-http_dav_module \
     --with-http_flv_module \
     --with-http_gzip_static_module \
+    --with-http_random_index_module \
+    --with-http_secure_link_module \
+    --with-http_degradation_module \
     --with-http_stub_status_module \
     --with-http_perl_module \
     --with-mail \
     --with-mail_ssl_module \
+    --with-ipv6 \
     --with-cc-opt="%{optflags} $(pcre-config --cflags)" \
-    --add-module=%{_builddir}/nginx-%{version}/nginx-upstream-fair
+    --add-module=%{_builddir}/nginx-%{version}/nginx-upstream-fair \
+    --with-ld-opt="-Wl,-E" # so the perl module finds its symbols
+
 make %{?_smp_mflags} 
 
 # rename the readme for nginx-upstream-fair so it doesn't conflict with the main
@@ -135,10 +147,14 @@ done
 rm -rf %{buildroot}
 
 %pre
-%{_sbindir}/useradd -c "Nginx user" -s /bin/false -r -d %{nginx_home} %{nginx_user} 2>/dev/null || :
+if [ $1 == 1 ]; then
+    %{_sbindir}/useradd -c "Nginx user" -s /bin/false -r -d %{nginx_home} %{nginx_user} 2>/dev/null || :
+fi
 
 %post
-/sbin/chkconfig --add %{real_name}
+if [ $1 == 1 ]; then
+    /sbin/chkconfig --add %{real_name}
+fi
 
 %preun
 if [ $1 = 0 ]; then
@@ -147,8 +163,8 @@ if [ $1 = 0 ]; then
 fi
 
 %postun
-if [ $1 -ge 1 ]; then
-    /sbin/service %{real_name} condrestart > /dev/null 2>&1 || :
+if [ $1 == 2 ]; then
+    /sbin/service %{real_name} upgrade || :
 fi
 
 %files
@@ -168,10 +184,10 @@ fi
 %config(noreplace) %{nginx_confdir}/fastcgi_params.default
 %config(noreplace) %{nginx_confdir}/fastcgi.conf
 %config(noreplace) %{nginx_confdir}/fastcgi.conf.default
-%config(noreplace) %{nginx_confdir}/uwsgi_params
-%config(noreplace) %{nginx_confdir}/uwsgi_params.default
 %config(noreplace) %{nginx_confdir}/scgi_params
 %config(noreplace) %{nginx_confdir}/scgi_params.default
+%config(noreplace) %{nginx_confdir}/uwsgi_params
+%config(noreplace) %{nginx_confdir}/uwsgi_params.default
 %config(noreplace) %{nginx_confdir}/koi-win
 %config(noreplace) %{nginx_confdir}/koi-utf
 %config(noreplace) %{nginx_confdir}/%{real_name}.conf
